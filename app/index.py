@@ -11,12 +11,12 @@ from langchain_community.vectorstores import Chroma
 
 load_dotenv()  # OPENAI_API_KEY 읽기
 
-# 1. 절대 경로로 project root 잡기 (rag-chatbot 폴더)
+# 1. 절대 경로로 경로 설정
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 CHROMA_DIR = str(BASE_DIR / "chroma_db")
 
-# 2. PDF 파일 리스트 (절대 경로 사용)
+# 2. 절대 경로에 PDF 파일 리스트 생성
 PDF_FILES = [
     DATA_DIR / "컴퓨터활용능력 실기 핵심 요약노트.pdf",
     DATA_DIR / "컴퓨터활용능력 필기 핵심 요약노트.pdf",
@@ -27,14 +27,14 @@ def build_index():
     all_docs = []
 
     for pdf_path in PDF_FILES:
-        pdf_path = Path(pdf_path)  # Path 객체 보장
+        pdf_path = Path(pdf_path)  
 
         # 디버깅용 출력
         print(f"Loading PDF: {pdf_path}")
         print(f"  Exists? {pdf_path.is_file()}")
 
         if not pdf_path.is_file():
-            raise FileNotFoundError(f"❌ PDF 파일을 찾을 수 없습니다: {pdf_path}")
+            raise FileNotFoundError(f"PDF 파일을 찾을 수 없습니다: {pdf_path}")
 
         # 1. PDF 로드
         loader = PyPDFLoader(str(pdf_path))
@@ -69,7 +69,7 @@ def build_index():
         persist_directory=CHROMA_DIR,
     )
     vectordb.persist()
-    print(f"✅ Chroma index built successfully with {len(chunks)} chunks.")
+    print(f"Chroma index built successfully with {len(chunks)} chunks.")
 
 
 if __name__ == "__main__":
