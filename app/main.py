@@ -91,16 +91,30 @@ def ask(q: Question):
         answer, source_docs = simple_answer(q.question)
 
     sources = []
+    seen = set()  # 파일이름과 페이지 중복 제거용
+
     for doc in source_docs:
         meta = doc.metadata
+
+        raw_source = meta.get("source", "pdf")
+        page = meta.get("page")
+
+        # 1) 파일 이름 추출
+        filename = Path(str(raw_source)).name            
+        # 2) 확장자 제거한 표시용 이름
+        display_name = Path(filename).stem               
+
+        # 3) 같은 파일/페이지면 스킵시키기
+        key = (display_name, page)
+        if key in seen:
+            continue
+        seen.add(key)
+
         sources.append(
             {
-                "title": meta.get("source", "pdf"),
-                "page": meta.get("page"),
-                "url": meta.get(
-                    "url",
-                    f"/static/{meta.get('source', 'pdf')}#page={meta.get('page')}",
-                ),
+                "title": f"{display_name} p.{page}",     
+                "page": page,
+                "url": f"/static/{filename}#page={page}",  
             }
         )
 
