@@ -112,7 +112,7 @@ def ask(q: Question):
 
         sources.append(
             {
-                "title": f"{display_name} p.{page}",     
+                "title": display_name,     
                 "page": page,
                 "url": f"/static/{filename}#page={page}",  
             }
