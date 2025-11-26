@@ -10,7 +10,7 @@ from langchain_community.vectorstores import Chroma
 
 load_dotenv()
 
-# 절대 경로 설정
+# 절대 경로로 설정
 BASE_DIR = Path(__file__).resolve().parent.parent
 CHROMA_DIR = str(BASE_DIR / "chroma_db")
 STATIC_DIR = str(BASE_DIR / "static")
@@ -27,7 +27,7 @@ def read_root():
     return FileResponse(str(Path(STATIC_DIR) / "index.html"))
 
 
-# 1. 벡터스토어 로드
+# 벡터스토어 로드
 embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 vectordb = Chroma(
     persist_directory=CHROMA_DIR,
@@ -35,14 +35,14 @@ vectordb = Chroma(
 )
 retriever = vectordb.as_retriever(search_kwargs={"k": 4})
 
-# 2. LLM 설정
+# LLM 설정
 llm = ChatOpenAI(
     model="gpt-4o-mini",  
     temperature=0.2,
 )
 
 
-# 3. RAG 함수
+# RAG 함수
 def rag_answer(question: str):
     docs = retriever.invoke(question)
 
@@ -65,13 +65,13 @@ def rag_answer(question: str):
     return answer_text, docs
 
 
-# 4. 일반 질문 함수 (RAG 없이)
+# 일반 질문 함수 (RAG 없을때)
 def simple_answer(question: str):
     response = llm.invoke(question)
     return response.content, []
 
 
-# ----- 요청/응답 스키마 정의 -----
+# ----- Q&A 스키마 -----
 class Question(BaseModel):
     question: str
     use_rag: bool = True
@@ -82,7 +82,7 @@ class Answer(BaseModel):
     sources: list[dict]
 
 
-# ----- /ask 엔드포인트 구현 -----
+# ----- /ask 엔드포인트 -----
 @app.post("/ask", response_model=Answer)
 def ask(q: Question):
     if q.use_rag:
@@ -91,7 +91,7 @@ def ask(q: Question):
         answer, source_docs = simple_answer(q.question)
 
     sources = []
-    seen = set()  # 파일이름과 페이지 중복 제거용
+    seen = set()  # 중복 제거
 
     for doc in source_docs:
         meta = doc.metadata
@@ -99,13 +99,9 @@ def ask(q: Question):
         raw_source = meta.get("source", "pdf")
         page = meta.get("page")
 
-        # 1) 파일 이름 추출
-        filename = Path(str(raw_source)).name            
-        # 2) 확장자 제거한 표시용 이름
-        display_name = Path(filename).stem               
-
-        # 3) 같은 파일/페이지면 스킵시키기
-        key = (display_name, page)
+        filename = Path(str(raw_source)).name # 파일 이름 추출
+        display_name = Path(filename).stem # 확장자 제거한 표시용 이름              
+        key = (display_name, page) # 같은 파일 스킵시키기
         if key in seen:
             continue
         seen.add(key)
