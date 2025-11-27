@@ -2,13 +2,16 @@ from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 from urllib.parse import quote
 import os
+import json
+import asyncio
 
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
+from langchain_core.callbacks import BaseCallbackHandler
 
 load_dotenv()
 
@@ -59,6 +62,20 @@ llm = ChatOpenAI(
     temperature=0.2,
 )
 
+llm_streaming = ChatOpenAI(
+    model="gpt-4o-mini",  
+    temperature=0.2,
+    streaming=True,
+)
+
+
+class StreamingCallbackHandler(BaseCallbackHandler):
+    def __init__(self):
+        self.tokens = []
+        
+    def on_llm_new_token(self, token: str, **kwargs):
+        self.tokens.append(token)
+
 
 def rag_answer(question: str):
     docs = retriever.invoke(question)
@@ -80,6 +97,53 @@ def rag_answer(question: str):
     answer_text = response.content
 
     return answer_text, docs
+
+
+async def rag_answer_stream(question: str):
+    docs = retriever.invoke(question)
+
+    context_parts = []
+    for d in docs:
+        context_parts.append(d.page_content)
+    context = "\n\n---\n\n".join(context_parts)
+
+    prompt = (
+        "다음 컨텍스트를 바탕으로 사용자의 질문에 답변해 주세요. "
+        "모르면 모른다고 말해도 됩니다.\n\n"
+        f"컨텍스트:\n{context}\n\n"
+        f"질문: {question}\n\n"
+        "답변:"
+    )
+
+    sources = []
+    seen_sources = set()
+    
+    for doc in docs:
+        meta = doc.metadata
+        source_file = meta.get("source", "unknown.pdf")
+        page_num = meta.get("page", 1)
+        
+        source_key = (source_file, page_num)
+        
+        if source_key not in seen_sources:
+            seen_sources.add(source_key)
+            display_name = source_file.replace('.pdf', '')
+            encoded_filename = quote(source_file)
+            
+            sources.append({
+                "title": display_name,  
+                "page": page_num,
+                "url": f"/pdf/{encoded_filename}#page={page_num}",
+            })
+
+    yield json.dumps({"type": "sources", "data": sources}) + "\n"
+
+    async for chunk in llm_streaming.astream(prompt):
+        if chunk.content:
+            yield json.dumps({"type": "token", "data": chunk.content}) + "\n"
+            await asyncio.sleep(0.01)
+
+    yield json.dumps({"type": "done"}) + "\n"
 
 
 def simple_answer(question: str):
@@ -130,3 +194,28 @@ def ask(q: Question):
         "answer": answer,
         "sources": sources,
     }
+
+
+@app.post("/ask-stream")
+async def ask_stream(q: Question):
+    if not q.use_rag:
+        return StreamingResponse(
+            simple_stream(q.question),
+            media_type="text/plain"
+        )
+    
+    return StreamingResponse(
+        rag_answer_stream(q.question),
+        media_type="text/plain"
+    )
+
+
+async def simple_stream(question: str):
+    yield json.dumps({"type": "sources", "data": []}) + "\n"
+    
+    async for chunk in llm_streaming.astream(question):
+        if chunk.content:
+            yield json.dumps({"type": "token", "data": chunk.content}) + "\n"
+            await asyncio.sleep(0.01)
+    
+    yield json.dumps({"type": "done"}) + "\n"
