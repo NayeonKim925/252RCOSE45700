@@ -99,9 +99,9 @@ uvicorn app.main:app --reload
 ├── app/
 │   ├── main.py       # FastAPI 서버 (업로드, RAG, 스트리밍)
 │   └── index.py      # 일괄 PDF 인덱싱 스크립트
-├── static/
-│   └── index.html    # 챗봇 프론트엔드 (마크다운 지원)
-├── data/             # 업로드된 PDF 저장 (git 미추적)
-├── chroma_db/        # Chroma 벡터 DB (git 미추적)
-└── .env              # API 키 (git 미추적)
+└── static/
+    └── index.html    # 챗봇 프론트엔드 (마크다운 지원)
 ```
+
+> `data/`, `chroma_db/`는 서버 실행 및 PDF 업로드 시 자동 생성됩니다.  
+> `.env`는 직접 생성 후 `OPENAI_API_KEY`를 설정하세요.
