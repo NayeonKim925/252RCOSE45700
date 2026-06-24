@@ -2,150 +2,151 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RAG Chatbot</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background-color: #0f172a;
+      background: #0f172a;
       color: #e5e7eb;
       height: 100vh;
       display: flex;
       justify-content: center;
       align-items: stretch;
     }
+
     .app {
       width: 100%;
       max-width: 1200px;
-      height: 90vh;
+      height: 100vh;
       background: #020617;
-      border-radius: 16px;
-      overflow: hidden;
       display: flex;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+      overflow: hidden;
     }
+
+    /* ── Sidebar ── */
     .sidebar {
       width: 280px;
       background: #020617;
       border-right: 1px solid #1f2937;
-      padding: 20px 18px;
+      padding: 20px 16px;
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 20px;
+      overflow-y: auto;
     }
     .sidebar h2 {
-      font-size: 16px;
-      margin-bottom: 8px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      color: #e5e7eb;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: #6b7280;
+      margin-bottom: 6px;
     }
-    .sidebar label {
-      font-size: 13px;
-      color: #9ca3af;
-      margin-bottom: 4px;
-      display: block;
-    }
-    .sidebar input[type="text"] {
-      width: 100%;
-      padding: 8px 10px;
-      border-radius: 8px;
-      border: 1px solid #4b5563;
-      background: #020617;
-      color: #e5e7eb;
-      font-size: 13px;
-    }
-    .sidebar input[type="text"]:focus {
-      outline: none;
-      border-color: #38bdf8;
-    }
+
+    /* toggle */
     .toggle-row {
       display: flex;
       align-items: center;
       gap: 8px;
-      margin-top: 8px;
+      font-size: 13px;
     }
-    .toggle-row input[type="checkbox"] {
-      width: 16px;
-      height: 16px;
-    }
+    .toggle-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: #38bdf8; }
+
+    /* chip */
     .chip {
       margin-top: 8px;
-      padding: 6px 10px;
+      padding: 5px 10px;
       border-radius: 999px;
       font-size: 12px;
       display: inline-flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
-    .chip.active {
-      background: #047857;
-      color: #bbf7d0;
-    }
-    .chip.inactive {
-      background: #7f1d1d;
-      color: #fca5a5;
-    }
-    .chip span {
-      font-size: 14px;
-    }
-    .sidebar section {
-      margin-top: 12px;
-    }
-    .sidebar ul {
-      margin-top: 8px;
-      padding-left: 18px;
+    .chip.active  { background: #064e3b; color: #6ee7b7; }
+    .chip.inactive { background: #7f1d1d; color: #fca5a5; }
+
+    /* upload zone */
+    .upload-zone {
+      border: 2px dashed #374151;
+      border-radius: 10px;
+      padding: 16px 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
       font-size: 13px;
-      color: #9ca3af;
-      line-height: 1.5;
+      color: #6b7280;
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: #38bdf8;
+      background: #0c1929;
+      color: #e5e7eb;
+    }
+    .upload-icon { font-size: 24px; margin-bottom: 6px; }
+    #file-input { display: none; }
+
+    .upload-status {
+      font-size: 12px;
+      color: #38bdf8;
+      min-height: 16px;
+      margin-top: 6px;
+      word-break: break-all;
     }
 
+    /* pdf list */
+    .pdf-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+    .pdf-list li {
+      font-size: 12px;
+      padding: 6px 10px;
+      background: #0f172a;
+      border-radius: 6px;
+      border: 1px solid #1f2937;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #9ca3af;
+      word-break: break-all;
+    }
+
+    /* ── Main ── */
     .main {
       flex: 1;
       display: flex;
       flex-direction: column;
       background: radial-gradient(circle at top left, #1e293b, #020617 55%);
+      overflow: hidden;
     }
     .header {
       padding: 16px 20px;
       border-bottom: 1px solid #1f2937;
+      flex-shrink: 0;
     }
-    .header h1 {
-      font-size: 22px;
-      font-weight: 700;
-      color: #e5e7eb;
-    }
-    .header p {
-      font-size: 13px;
-      color: #9ca3af;
-      margin-top: 4px;
-    }
+    .header h1 { font-size: 20px; font-weight: 700; color: #e5e7eb; }
+    .header p  { font-size: 13px; color: #9ca3af; margin-top: 4px; }
 
+    /* chat */
     .chat-area {
       flex: 1;
       padding: 16px 20px;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 14px;
     }
 
-    .question-bubble,
-    .answer-bubble {
+    .question-bubble, .answer-bubble {
       max-width: 80%;
-      padding: 10px 12px;
+      padding: 10px 14px;
       border-radius: 12px;
       font-size: 14px;
-      line-height: 1.5;
+      line-height: 1.6;
     }
     .question-bubble {
       align-self: flex-end;
-      background: #1e293b;
+      background: #1e3a5f;
     }
     .answer-bubble {
       align-self: flex-start;
@@ -154,41 +155,77 @@
     }
     .answer-title {
       font-weight: 600;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
       display: flex;
       align-items: center;
       gap: 6px;
-    }
-    .emoji {
-      font-size: 18px;
+      font-size: 12px;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: .05em;
     }
 
+    /* markdown */
+    .md-body h1,.md-body h2,.md-body h3 { margin: .6em 0 .3em; color: #e5e7eb; }
+    .md-body h1 { font-size: 1.1em; }
+    .md-body h2 { font-size: 1em; }
+    .md-body h3 { font-size: .95em; }
+    .md-body p  { margin-bottom: .5em; }
+    .md-body ul,.md-body ol { padding-left: 1.4em; margin-bottom: .5em; }
+    .md-body li { margin-bottom: 2px; }
+    .md-body code {
+      background: #1e293b;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-family: "Fira Code", monospace;
+      font-size: 12px;
+      color: #7dd3fc;
+    }
+    .md-body pre {
+      background: #0f172a;
+      border: 1px solid #1f2937;
+      border-radius: 8px;
+      padding: 10px 14px;
+      overflow-x: auto;
+      margin-bottom: .6em;
+    }
+    .md-body pre code { background: none; padding: 0; font-size: 13px; color: #e5e7eb; }
+    .md-body table { border-collapse: collapse; width: 100%; margin-bottom: .6em; font-size: 13px; }
+    .md-body th,.md-body td { border: 1px solid #374151; padding: 5px 10px; }
+    .md-body th { background: #1e293b; color: #e5e7eb; }
+    .md-body strong { color: #f9fafb; }
+    .md-body blockquote {
+      border-left: 3px solid #38bdf8;
+      padding-left: 10px;
+      color: #9ca3af;
+      margin: .4em 0;
+    }
+
+    /* sources */
     .sources {
-      margin-top: 8px;
-      padding-top: 8px;
+      margin-top: 10px;
+      padding-top: 10px;
       border-top: 1px dashed #374151;
     }
-    .sources-title {
-      font-size: 13px;
-      color: #9ca3af;
-      margin-bottom: 4px;
-    }
-    .sources ul {
-      list-style: none;
-      padding-left: 0;
-    }
-    .sources li {
-      font-size: 13px;
-      margin-bottom: 2px;
-    }
-    .sources a {
-      color: #38bdf8;
-      text-decoration: none;
-    }
-    .sources a:hover {
-      text-decoration: underline;
-    }
+    .sources-title { font-size: 11px; color: #4b5563; margin-bottom: 4px; text-transform: uppercase; letter-spacing: .05em; }
+    .sources ul { list-style: none; padding: 0; }
+    .sources li { font-size: 12px; margin-bottom: 2px; }
+    .sources a { color: #38bdf8; text-decoration: none; }
+    .sources a:hover { text-decoration: underline; }
 
+    /* typing cursor */
+    .typing-cursor {
+      display: inline-block;
+      width: 2px;
+      height: 1em;
+      background: #38bdf8;
+      margin-left: 2px;
+      vertical-align: text-bottom;
+      animation: blink 1s infinite;
+    }
+    @keyframes blink { 0%,49%{opacity:1} 50%,100%{opacity:0} }
+
+    /* footer */
     .footer {
       padding: 12px 20px 16px;
       border-top: 1px solid #1f2937;
@@ -196,258 +233,301 @@
       gap: 10px;
       align-items: center;
       background: #020617;
+      flex-shrink: 0;
     }
     .footer input[type="text"] {
       flex: 1;
-      padding: 10px 12px;
+      padding: 10px 14px;
       border-radius: 999px;
       border: 1px solid #4b5563;
-      background: #020617;
+      background: #0f172a;
       color: #e5e7eb;
       font-size: 14px;
     }
-    .footer input[type="text"]:focus {
-      outline: none;
-      border-color: #38bdf8;
-    }
+    .footer input[type="text"]:focus { outline: none; border-color: #38bdf8; }
     .footer button {
-      padding: 9px 16px;
+      padding: 9px 18px;
       border-radius: 999px;
       border: none;
       background: #38bdf8;
       color: #0f172a;
-      font-weight: 600;
+      font-weight: 700;
       cursor: pointer;
       font-size: 14px;
+      transition: background .15s;
     }
-    .footer button:disabled {
-      opacity: 0.6;
-      cursor: default;
-    }
+    .footer button:hover:not(:disabled) { background: #7dd3fc; }
+    .footer button:disabled { opacity: .5; cursor: default; }
+    .status { font-size: 12px; color: #9ca3af; }
 
-    .status {
-      font-size: 12px;
-      color: #9ca3af;
-      margin-left: 4px;
-    }
-
-    .typing-cursor {
-      display: inline-block;
-      width: 2px;
-      height: 1em;
-      background-color: #38bdf8;
-      margin-left: 2px;
-      animation: blink 1s infinite;
-    }
-
-    @keyframes blink {
-      0%, 49% { opacity: 1; }
-      50%, 100% { opacity: 0; }
+    @media (max-width: 640px) {
+      .sidebar { display: none; }
     }
   </style>
 </head>
 <body>
-  <div class="app">
-    <aside class="sidebar">
-      <h2>설정</h2>
-      <div>
-        <label for="kb-id">데이터 소스</label>
-        <input id="kb-id" type="text" value="컴활 필기/실기 요약노트" readonly />
-        <div class="toggle-row">
-          <input id="kb-enabled" type="checkbox" checked />
-          <span style="font-size:13px;">LangChain RAG 사용</span>
-        </div>
-        <div id="status-chip" class="chip active">
-          <span>✅</span> <span>LangChain RAG 사용 중</span>
-        </div>
+<div class="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div>
+      <h2>RAG 설정</h2>
+      <div class="toggle-row">
+        <input id="kb-enabled" type="checkbox" checked />
+        <span>LangChain RAG 사용</span>
       </div>
+      <div id="status-chip" class="chip active">✅ RAG 활성화</div>
+    </div>
 
-      <section>
-        <h2>사용 방법</h2>
-        <ul>
-          <li>1. 질문을 입력합니다.</li>
-          <li>2. Enter 키 또는 전송 버튼을 누릅니다.</li>
-          <li>3. 실시간으로 타이핑되는 답변을 확인합니다.</li>
-        </ul>
-      </section>
-    </aside>
+    <div>
+      <h2>PDF 업로드</h2>
+      <div class="upload-zone" id="upload-zone">
+        <div class="upload-icon">📄</div>
+        <div>클릭하거나 파일을 드래그하세요</div>
+        <div style="font-size:11px;margin-top:4px;color:#4b5563;">PDF · 최대 50MB</div>
+      </div>
+      <input type="file" id="file-input" accept=".pdf" />
+      <div class="upload-status" id="upload-status"></div>
+    </div>
 
-    <main class="main">
-      <header class="header">
-        <h1>LangChain RAG 기반 챗봇</h1>
-        <p>PDF로부터 구축한 Chroma 벡터스토어와 LangChain을 활용하여 실시간으로 답변합니다.</p>
-      </header>
+    <div>
+      <h2>인덱싱된 PDF</h2>
+      <ul class="pdf-list" id="pdf-list">
+        <li style="color:#4b5563;font-style:italic;">불러오는 중...</li>
+      </ul>
+    </div>
 
-      <section id="chat" class="chat-area">
-      </section>
+    <div>
+      <h2>사용 방법</h2>
+      <ul style="padding-left:16px;font-size:13px;color:#6b7280;line-height:1.8">
+        <li>PDF를 업로드합니다.</li>
+        <li>질문을 입력합니다.</li>
+        <li>Enter 또는 보내기를 누릅니다.</li>
+        <li>출처 링크로 원본을 확인합니다.</li>
+      </ul>
+    </div>
+  </aside>
 
-      <footer class="footer">
-        <input
-          id="question-input"
-          type="text"
-          placeholder="무엇이 궁금한가요?" />
-        <button id="send-btn">보내기</button>
-        <span id="status" class="status"></span>
-      </footer>
-    </main>
-  </div>
+  <!-- Main -->
+  <main class="main">
+    <header class="header">
+      <h1>LangChain RAG 챗봇</h1>
+      <p>PDF 문서 기반 Chroma 벡터스토어 + GPT-4o-mini 실시간 스트리밍 답변</p>
+    </header>
 
-  <script>
-    const questionInput = document.getElementById("question-input");
-    const sendBtn = document.getElementById("send-btn");
-    const chat = document.getElementById("chat");
-    const statusEl = document.getElementById("status");
-    const kbEnabled = document.getElementById("kb-enabled");
-    const statusChip = document.getElementById("status-chip");
+    <section id="chat" class="chat-area"></section>
 
-    kbEnabled.addEventListener("change", function() {
-      if (this.checked) {
-        statusChip.className = "chip active";
-        statusChip.innerHTML = '<span>✅</span> <span>LangChain RAG 사용 중</span>';
-      } else {
-        statusChip.className = "chip inactive";
-        statusChip.innerHTML = '<span>❌</span> <span>LangChain RAG 사용 안 함</span>';
-      }
-    });
+    <footer class="footer">
+      <input id="question-input" type="text" placeholder="무엇이 궁금한가요?" />
+      <button id="send-btn">보내기</button>
+      <span id="status" class="status"></span>
+    </footer>
+  </main>
+</div>
 
-    statusChip.className = "chip active";
+<script>
+  marked.setOptions({ breaks: true, gfm: true });
 
-    async function sendQuestion() {
-      const question = questionInput.value.trim();
-      if (!question) return;
+  const questionInput = document.getElementById("question-input");
+  const sendBtn       = document.getElementById("send-btn");
+  const chat          = document.getElementById("chat");
+  const statusEl      = document.getElementById("status");
+  const kbEnabled     = document.getElementById("kb-enabled");
+  const statusChip    = document.getElementById("status-chip");
+  const uploadZone    = document.getElementById("upload-zone");
+  const fileInput     = document.getElementById("file-input");
+  const uploadStatus  = document.getElementById("upload-status");
+  const pdfList       = document.getElementById("pdf-list");
 
-      const useRAG = kbEnabled.checked;
-      
-      if (!useRAG) {
-        const confirmed = confirm("LangChain RAG를 사용하지 않고 질문하시겠습니까?\n(출처 정보 없이 일반 응답만 제공됩니다)");
-        if (!confirmed) return;
-      }
-
-      const qBubble = document.createElement("div");
-      qBubble.className = "question-bubble";
-      qBubble.textContent = question;
-      chat.appendChild(qBubble);
-
-      chat.scrollTop = chat.scrollHeight;
-
-      questionInput.value = "";
-      questionInput.disabled = true;
-      sendBtn.disabled = true;
-      statusEl.textContent = "답변 생성 중...";
-
-      const aBubble = document.createElement("div");
-      aBubble.className = "answer-bubble";
-
-      const title = document.createElement("div");
-      title.className = "answer-title";
-      title.innerHTML = `<span class="emoji">🤖</span><span>답변</span>`;
-      aBubble.appendChild(title);
-
-      const text = document.createElement("div");
-      text.style.whiteSpace = "pre-wrap";
-      aBubble.appendChild(text);
-
-      const cursor = document.createElement("span");
-      cursor.className = "typing-cursor";
-      text.appendChild(cursor);
-
-      chat.appendChild(aBubble);
-      chat.scrollTop = chat.scrollHeight;
-
-      try {
-        const res = await fetch("/ask-stream", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            question,
-            use_rag: useRAG
-          }),
-        });
-
-        if (!res.ok) {
-          throw new Error("서버 오류: " + res.status);
-        }
-
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-        let sources = [];
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop();
-
-          for (const line of lines) {
-            if (!line.trim()) continue;
-
-            try {
-              const data = JSON.parse(line);
-
-              if (data.type === "sources") {
-                sources = data.data;
-              } else if (data.type === "token") {
-                cursor.remove();
-                const textNode = document.createTextNode(data.data);
-                text.appendChild(textNode);
-                text.appendChild(cursor);
-                chat.scrollTop = chat.scrollHeight;
-              } else if (data.type === "done") {
-                cursor.remove();
-
-                if (sources && sources.length > 0) {
-                  const sourcesDiv = document.createElement("div");
-                  sourcesDiv.className = "sources";
-
-                  const sourcesTitle = document.createElement("div");
-                  sourcesTitle.className = "sources-title";
-                  sourcesTitle.textContent = "참조한 출처:";
-                  sourcesDiv.appendChild(sourcesTitle);
-
-                  const ul = document.createElement("ul");
-                  sources.forEach((s, idx) => {
-                    const li = document.createElement("li");
-                    const a = document.createElement("a");
-                    const pageText = s.page ? ` p.${s.page}` : "";
-                    a.textContent = `${idx + 1}. ${s.title}${pageText}`;
-                    a.href = s.url || "#";
-                    a.target = "_blank";
-                    li.appendChild(a);
-                    ul.appendChild(li);
-                  });
-                  sourcesDiv.appendChild(ul);
-                  aBubble.appendChild(sourcesDiv);
-                }
-              }
-            } catch (e) {
-              console.error("JSON parse error:", e, line);
-            }
-          }
-        }
-
-        chat.scrollTop = chat.scrollHeight;
-      } catch (err) {
-        console.error(err);
-        cursor.remove();
-        text.textContent = "요청 중 오류가 발생했습니다.";
-      } finally {
-        questionInput.disabled = false;
-        sendBtn.disabled = false;
-        statusEl.textContent = "";
-        questionInput.focus();
-      }
+  // RAG toggle
+  kbEnabled.addEventListener("change", () => {
+    if (kbEnabled.checked) {
+      statusChip.className = "chip active";
+      statusChip.textContent = "✅ RAG 활성화";
+    } else {
+      statusChip.className = "chip inactive";
+      statusChip.textContent = "❌ RAG 비활성화";
     }
+  });
 
-    sendBtn.addEventListener("click", sendQuestion);
-    questionInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        sendQuestion();
+  // PDF list
+  async function loadPdfList() {
+    try {
+      const res  = await fetch("/pdfs");
+      const data = await res.json();
+      pdfList.innerHTML = "";
+      if (!data.files.length) {
+        pdfList.innerHTML = '<li style="color:#4b5563;font-style:italic;">아직 없음</li>';
+        return;
       }
-    });
-  </script>
+      data.files.forEach(name => {
+        const li = document.createElement("li");
+        li.innerHTML = `<span>📄</span>${name}`;
+        pdfList.appendChild(li);
+      });
+    } catch { /* ignore */ }
+  }
+  loadPdfList();
+
+  // Upload
+  uploadZone.addEventListener("click", () => fileInput.click());
+  fileInput.addEventListener("change", () => {
+    if (fileInput.files[0]) uploadFile(fileInput.files[0]);
+  });
+  uploadZone.addEventListener("dragover", e => { e.preventDefault(); uploadZone.classList.add("drag-over"); });
+  uploadZone.addEventListener("dragleave", () => uploadZone.classList.remove("drag-over"));
+  uploadZone.addEventListener("drop", e => {
+    e.preventDefault();
+    uploadZone.classList.remove("drag-over");
+    const f = e.dataTransfer.files[0];
+    if (f) uploadFile(f);
+  });
+
+  async function uploadFile(file) {
+    if (!file.name.toLowerCase().endsWith(".pdf")) {
+      uploadStatus.style.color = "#f87171";
+      uploadStatus.textContent = "PDF 파일만 업로드할 수 있습니다.";
+      return;
+    }
+    uploadStatus.style.color = "#38bdf8";
+    uploadStatus.textContent = `업로드 중: ${file.name}`;
+
+    const form = new FormData();
+    form.append("file", file);
+    try {
+      const res = await fetch("/upload", { method: "POST", body: form });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || "업로드 실패");
+      }
+      const data = await res.json();
+      uploadStatus.style.color = "#6ee7b7";
+      uploadStatus.textContent = `완료: ${data.filename} (${data.chunks}청크)`;
+      fileInput.value = "";
+      await loadPdfList();
+    } catch (e) {
+      uploadStatus.style.color = "#f87171";
+      uploadStatus.textContent = `오류: ${e.message}`;
+    }
+  }
+
+  // Chat
+  async function sendQuestion() {
+    const question = questionInput.value.trim();
+    if (!question) return;
+
+    const useRAG = kbEnabled.checked;
+    if (!useRAG && !confirm("RAG 없이 질문하시겠습니까?\n(출처 정보 없이 일반 응답만 제공됩니다)")) return;
+
+    const qBubble = document.createElement("div");
+    qBubble.className = "question-bubble";
+    qBubble.textContent = question;
+    chat.appendChild(qBubble);
+    chat.scrollTop = chat.scrollHeight;
+
+    questionInput.value = "";
+    questionInput.disabled = true;
+    sendBtn.disabled = true;
+    statusEl.textContent = "답변 생성 중...";
+
+    const aBubble = document.createElement("div");
+    aBubble.className = "answer-bubble";
+    const title = document.createElement("div");
+    title.className = "answer-title";
+    title.innerHTML = `<span>🤖</span><span>답변</span>`;
+    aBubble.appendChild(title);
+
+    const mdBody = document.createElement("div");
+    mdBody.className = "md-body";
+    aBubble.appendChild(mdBody);
+
+    const cursor = document.createElement("span");
+    cursor.className = "typing-cursor";
+    mdBody.appendChild(cursor);
+
+    chat.appendChild(aBubble);
+    chat.scrollTop = chat.scrollHeight;
+
+    let rawText = "";
+
+    try {
+      const res = await fetch("/ask-stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question, use_rag: useRAG }),
+      });
+      if (!res.ok) throw new Error("서버 오류: " + res.status);
+
+      const reader  = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let sources = [];
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop();
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const data = JSON.parse(line);
+            if (data.type === "sources") {
+              sources = data.data;
+            } else if (data.type === "token") {
+              rawText += data.data;
+              cursor.remove();
+              mdBody.innerHTML = marked.parse(rawText);
+              mdBody.appendChild(cursor);
+              chat.scrollTop = chat.scrollHeight;
+            } else if (data.type === "done") {
+              cursor.remove();
+              mdBody.innerHTML = marked.parse(rawText);
+
+              if (sources.length) {
+                const div = document.createElement("div");
+                div.className = "sources";
+                const t = document.createElement("div");
+                t.className = "sources-title";
+                t.textContent = "참조한 출처";
+                div.appendChild(t);
+                const ul = document.createElement("ul");
+                sources.forEach((s, i) => {
+                  const li = document.createElement("li");
+                  const a  = document.createElement("a");
+                  a.textContent = `${i + 1}. ${s.title}${s.page ? " p." + s.page : ""}`;
+                  a.href = s.url || "#";
+                  a.target = "_blank";
+                  li.appendChild(a);
+                  ul.appendChild(li);
+                });
+                div.appendChild(ul);
+                aBubble.appendChild(div);
+              }
+            }
+          } catch (e) { console.error("JSON parse error:", e, line); }
+        }
+      }
+      chat.scrollTop = chat.scrollHeight;
+    } catch (err) {
+      console.error(err);
+      cursor.remove();
+      mdBody.textContent = "요청 중 오류가 발생했습니다.";
+    } finally {
+      questionInput.disabled = false;
+      sendBtn.disabled = false;
+      statusEl.textContent = "";
+      questionInput.focus();
+    }
+  }
+
+  sendBtn.addEventListener("click", sendQuestion);
+  questionInput.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); sendQuestion(); }
+  });
+</script>
 </body>
 </html>
