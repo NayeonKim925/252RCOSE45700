@@ -7,8 +7,7 @@ PDF 문서를 업로드하면 LangChain RAG 파이프라인이 문서를 벡터 
 
 ## 데모
 
-> 스크린샷 또는 GIF를 여기에 추가하세요.  
-> 예: `![demo](assets/demo.gif)`
+![demo](assets/demo%20(rag).png)
 
 ---
 
