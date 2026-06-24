@@ -5,10 +5,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 from pydantic import BaseModel
 from urllib.parse import quote
-import os
 import json
 import asyncio
-import shutil
 
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
@@ -24,6 +22,7 @@ DATA_DIR = BASE_DIR / "data"
 DATA_DIR.mkdir(exist_ok=True)
 
 MAX_UPLOAD_MB = 50
+MAX_HISTORY_TURNS = 8  # 유지할 최대 대화 턴 수
 
 app = FastAPI(title="RAG Chatbot with LangChain & Chroma")
 
@@ -61,6 +60,7 @@ def list_pdfs():
     return {"files": files}
 
 
+# ── 벡터 DB / LLM ──────────────────────────────────────────────────────────
 embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 vectordb = Chroma(
     persist_directory=CHROMA_DIR,
@@ -72,8 +72,36 @@ llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
 llm_streaming = ChatOpenAI(model="gpt-4o-mini", temperature=0.2, streaming=True)
 
 
+# ── 대화 히스토리 ────────────────────────────────────────────────────────────
+# 단일 세션 인메모리 히스토리: [{"role": "user"|"assistant", "content": "..."}]
+conversation_history: list[dict] = []
+
+
+def _format_history() -> str:
+    """최근 MAX_HISTORY_TURNS 턴의 대화를 프롬프트용 문자열로 변환한다."""
+    recent = conversation_history[-(MAX_HISTORY_TURNS * 2):]
+    if not recent:
+        return ""
+    lines = []
+    for msg in recent:
+        role = "사용자" if msg["role"] == "user" else "AI"
+        lines.append(f"{role}: {msg['content']}")
+    return "\n".join(lines)
+
+
+def _append_history(question: str, answer: str):
+    conversation_history.append({"role": "user", "content": question})
+    conversation_history.append({"role": "assistant", "content": answer})
+
+
+@app.delete("/history")
+def reset_history():
+    conversation_history.clear()
+    return {"status": "cleared"}
+
+
+# ── PDF 인덱싱 ────────────────────────────────────────────────────────────
 def _index_pdf(pdf_path: Path):
-    """PDF를 읽어 기존 벡터 DB에 추가한다."""
     global vectordb, retriever
 
     loader = PyPDFLoader(str(pdf_path))
@@ -83,9 +111,7 @@ def _index_pdf(pdf_path: Path):
         if "page" not in doc.metadata:
             doc.metadata["page"] = i + 1
 
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000, chunk_overlap=200
-    )
+    splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
     chunks = splitter.split_documents(pages)
 
     vectordb.add_documents(chunks)
@@ -120,6 +146,7 @@ async def upload_pdf(file: UploadFile = File(...)):
     return JSONResponse({"filename": file.filename, "chunks": num_chunks})
 
 
+# ── 공통 유틸 ────────────────────────────────────────────────────────────
 def _build_sources(docs: list) -> list[dict]:
     seen = set()
     sources = []
@@ -140,55 +167,78 @@ def _build_sources(docs: list) -> list[dict]:
     return sources
 
 
+def _build_rag_prompt(question: str, context: str) -> str:
+    history = _format_history()
+    history_block = f"\n이전 대화:\n{history}\n" if history else ""
+    return (
+        "당신은 친절하고 정확한 AI 어시스턴트입니다. "
+        "아래 참고 문서를 바탕으로 답변하세요. 모르면 모른다고 말해도 됩니다."
+        f"{history_block}\n"
+        f"참고 문서:\n{context}\n\n"
+        f"사용자: {question}\nAI:"
+    )
+
+
+def _build_simple_prompt(question: str) -> str:
+    history = _format_history()
+    history_block = f"\n이전 대화:\n{history}\n" if history else ""
+    return (
+        "당신은 친절하고 정확한 AI 어시스턴트입니다."
+        f"{history_block}\n"
+        f"사용자: {question}\nAI:"
+    )
+
+
+# ── 답변 함수 ────────────────────────────────────────────────────────────
 def rag_answer(question: str):
     docs = retriever.invoke(question)
     context = "\n\n---\n\n".join(d.page_content for d in docs)
-    prompt = (
-        "다음 컨텍스트를 바탕으로 사용자의 질문에 답변해 주세요. "
-        "모르면 모른다고 말해도 됩니다.\n\n"
-        f"컨텍스트:\n{context}\n\n"
-        f"질문: {question}\n\n"
-        "답변:"
-    )
-    response = llm.invoke(prompt)
+    response = llm.invoke(_build_rag_prompt(question, context))
+    _append_history(question, response.content)
     return response.content, docs
 
 
 async def rag_answer_stream(question: str):
     docs = retriever.invoke(question)
     context = "\n\n---\n\n".join(d.page_content for d in docs)
-    prompt = (
-        "다음 컨텍스트를 바탕으로 사용자의 질문에 답변해 주세요. "
-        "모르면 모른다고 말해도 됩니다.\n\n"
-        f"컨텍스트:\n{context}\n\n"
-        f"질문: {question}\n\n"
-        "답변:"
-    )
+    prompt = _build_rag_prompt(question, context)
 
     yield json.dumps({"type": "sources", "data": _build_sources(docs)}) + "\n"
 
+    full_response = ""
     async for chunk in llm_streaming.astream(prompt):
         if chunk.content:
+            full_response += chunk.content
             yield json.dumps({"type": "token", "data": chunk.content}) + "\n"
             await asyncio.sleep(0.01)
 
+    _append_history(question, full_response)
     yield json.dumps({"type": "done"}) + "\n"
 
 
 def simple_answer(question: str):
-    response = llm.invoke(question)
+    response = llm.invoke(_build_simple_prompt(question))
+    _append_history(question, response.content)
     return response.content, []
 
 
 async def simple_stream(question: str):
+    prompt = _build_simple_prompt(question)
+
     yield json.dumps({"type": "sources", "data": []}) + "\n"
-    async for chunk in llm_streaming.astream(question):
+
+    full_response = ""
+    async for chunk in llm_streaming.astream(prompt):
         if chunk.content:
+            full_response += chunk.content
             yield json.dumps({"type": "token", "data": chunk.content}) + "\n"
             await asyncio.sleep(0.01)
+
+    _append_history(question, full_response)
     yield json.dumps({"type": "done"}) + "\n"
 
 
+# ── 엔드포인트 ────────────────────────────────────────────────────────────
 class Question(BaseModel):
     question: str
     use_rag: bool = True
