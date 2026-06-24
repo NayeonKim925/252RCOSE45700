@@ -1,115 +1,116 @@
-﻿# LangChain RAG Chatbot
+# LangChain RAG Chatbot
 
-ì»´í“¨í„°í™œìš©ëŠ¥ë ¥ ìžê²©ì¦ ì¤€ë¹„ ê³¼ì •ì—ì„œ ë°©ëŒ€í•œ ìš”ì•½ PDFë¥¼ íš¨ìœ¨ì ìœ¼ë¡œ ê²€ìƒ‰í•˜ê³  ì‹¶ë‹¤ëŠ” í•„ìš”ì—ì„œ ì‹œìž‘í•œ í”„ë¡œì íŠ¸ìž…ë‹ˆë‹¤.  
-PDF ë¬¸ì„œë¥¼ ì—…ë¡œë“œí•˜ë©´ LangChain RAG íŒŒì´í”„ë¼ì¸ì´ ë¬¸ì„œë¥¼ ë²¡í„° ì¸ë±ì‹±í•˜ê³ , ì§ˆë¬¸ì— ê´€ë ¨ ë‚´ìš©ì„ ì°¾ì•„ GPT-4o-miniê°€ ì‹¤ì‹œê°„ìœ¼ë¡œ ë‹µë³€í•©ë‹ˆë‹¤.
-
----
-
-## ë°ëª¨
-
-> ìŠ¤í¬ë¦°ìƒ· ë˜ëŠ” GIFë¥¼ ì—¬ê¸°ì— ì¶”ê°€í•˜ì„¸ìš”.  
-> ì˜ˆ: `![demo](assets/demo.gif)`
+SQLD 자격증 준비 과정에서 방대한 요약 서브노트 PDF를 효율적으로 검색하고 싶다는 필요에서 시작한 프로젝트입니다.  
+PDF 문서를 업로드하면 LangChain RAG 파이프라인이 문서를 벡터 인덱싱하고, 질문에 관련 내용을 찾아 GPT-4o-mini가 실시간으로 답변합니다.
 
 ---
 
-## ì£¼ìš” ê¸°ëŠ¥
+## 데모
 
-- **PDF ì—…ë¡œë“œ** â€” ë“œëž˜ê·¸&ë“œë¡­ ë˜ëŠ” í´ë¦­ìœ¼ë¡œ PDFë¥¼ ì—…ë¡œë“œí•˜ë©´ ìžë™ìœ¼ë¡œ ë²¡í„° ì¸ë±ì‹±
-- **ì‹¤ì‹œê°„ ìŠ¤íŠ¸ë¦¬ë°** â€” GPT-4o-miniì˜ ì‘ë‹µì„ í† í° ë‹¨ìœ„ë¡œ ìŠ¤íŠ¸ë¦¬ë° ì¶œë ¥ (íƒ€ì´í•‘ ì• ë‹ˆë©”ì´ì…˜)
-- **ì¶œì²˜ í‘œì‹œ** â€” ë‹µë³€ ê·¼ê±°ê°€ ëœ PDF íŽ˜ì´ì§€ ë§í¬ë¥¼ í•¨ê»˜ ì œê³µ
-- **ë§ˆí¬ë‹¤ìš´ ë Œë”ë§** â€” ì½”ë“œ ë¸”ë¡, í‘œ, ëª©ë¡ ë“± ì„œì‹ì´ ìžˆëŠ” ë‹µë³€ ì§€ì›
-- **RAG / ì¼ë°˜ LLM ì „í™˜** â€” ì‚¬ì´ë“œë°” í† ê¸€ë¡œ RAG ëª¨ë“œì™€ ì¼ë°˜ GPT ëª¨ë“œ ì „í™˜ ê°€ëŠ¥
+![demo](assets/demo%20(rag).png)
 
 ---
 
-## ì•„í‚¤í…ì²˜
+## 주요 기능
+
+- **PDF 업로드** — 드래그&드롭 또는 클릭으로 PDF를 업로드하면 자동으로 벡터 인덱싱
+- **실시간 스트리밍** — GPT-4o-mini의 응답을 토큰 단위로 스트리밍 출력 (타이핑 애니메이션)
+- **출처 표시** — 답변 근거가 된 PDF 페이지 링크를 함께 제공
+- **마크다운 렌더링** — 코드 블록, 표, 목록 등 서식이 있는 답변 지원
+- **RAG / 일반 LLM 전환** — 사이드바 토글로 RAG 모드와 일반 GPT 모드 전환 가능
+- **Multi-turn 대화** — 이전 대화를 기억해 연속 질문 가능 (최대 8턴)
+
+---
+
+## 아키텍처
 
 ```
-ì‚¬ìš©ìž ë¸Œë¼ìš°ì € (index.html)
-        â”‚  POST /upload          POST /ask-stream
-        â–¼                              â–¼
-  FastAPI ì„œë²„ (main.py)
-        â”‚                              â”‚
-   PDF ì €ìž¥ + ì¸ë±ì‹±           ë²¡í„° ê²€ìƒ‰ + LLM í˜¸ì¶œ
-        â”‚                              â”‚
-  PyPDFLoader                   Chroma DB (ë¡œì»¬)
-  RecursiveTextSplitter               â”‚
+사용자 브라우저 (index.html)
+        │  POST /upload          POST /ask-stream
+        ▼                              ▼
+  FastAPI 서버 (main.py)
+        │                              │
+   PDF 저장 + 인덱싱           벡터 검색 + LLM 호출
+        │                              │
+  PyPDFLoader                   Chroma DB (로컬)
+  RecursiveTextSplitter               │
   OpenAI Embeddings            LangChain retriever (k=4)
-        â”‚                              â”‚
+        │                              │
     chroma_db/               GPT-4o-mini (streaming)
 ```
 
 ---
 
-## ê¸°ìˆ  ìŠ¤íƒ
+## 기술 스택
 
-| êµ¬ë¶„ | ê¸°ìˆ  |
+| 구분 | 기술 |
 |------|------|
-| ë°±ì—”ë“œ | FastAPI, Python 3.11+ |
+| 백엔드 | FastAPI, Python 3.11+ |
 | LLM | OpenAI GPT-4o-mini |
-| ìž„ë² ë”© | OpenAI text-embedding-3-small |
-| ë²¡í„° DB | Chroma (ë¡œì»¬ í¼ì‹œìŠ¤í„´íŠ¸) |
-| RAG í”„ë ˆìž„ì›Œí¬ | LangChain |
-| PDF íŒŒì‹± | PyPDFLoader |
-| í”„ë¡ íŠ¸ì—”ë“œ | Vanilla JS, marked.js (ë§ˆí¬ë‹¤ìš´ ë Œë”ë§) |
+| 임베딩 | OpenAI text-embedding-3-small |
+| 벡터 DB | Chroma (로컬 퍼시스턴트) |
+| RAG 프레임워크 | LangChain |
+| PDF 파싱 | PyPDFLoader |
+| 프론트엔드 | Vanilla JS, marked.js (마크다운 렌더링) |
 
 ---
 
-## ì„¤ì¹˜ ë° ì‹¤í–‰
+## 설치 및 실행
 
-### 1. ì˜ì¡´ì„± ì„¤ì¹˜
+### 1. 의존성 설치
 
 ```bash
-pip install fastapi uvicorn langchain langchain-openai langchain-community \
-            chromadb pypdf python-dotenv python-multipart
+pip install fastapi uvicorn langchain langchain-openai langchain-community chromadb pypdf python-dotenv python-multipart
 ```
 
-### 2. í™˜ê²½ ë³€ìˆ˜ ì„¤ì •
+### 2. 환경 변수 설정
 
 ```bash
-# .env íŒŒì¼ ìƒì„±
+# .env 파일 생성
 OPENAI_API_KEY=sk-...
 ```
 
-### 3. (ì„ íƒ) ê¸°ì¡´ PDF ì¼ê´„ ì¸ë±ì‹±
+### 3. (선택) 기존 PDF 일괄 인덱싱
 
 ```bash
-# data/ í´ë”ì— PDFë¥¼ ë„£ê³  ì‹¤í–‰
+# data/ 폴더에 PDF를 넣고 실행
 python app/index.py
 ```
 
-### 4. ì„œë²„ ì‹¤í–‰
+### 4. 서버 실행
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
-ë¸Œë¼ìš°ì €ì—ì„œ `http://localhost:8000` ì ‘ì† í›„ PDFë¥¼ ì—…ë¡œë“œí•˜ê³  ì§ˆë¬¸í•˜ì„¸ìš”.
+브라우저에서 `http://localhost:8000` 접속 후 PDF를 업로드하고 질문하세요.
 
 ---
 
-## API ì—”ë“œí¬ì¸íŠ¸
+## API 엔드포인트
 
-| Method | Path | ì„¤ëª… |
+| Method | Path | 설명 |
 |--------|------|------|
-| GET | `/` | ì±—ë´‡ UI |
-| GET | `/pdfs` | ì—…ë¡œë“œëœ PDF ëª©ë¡ |
-| POST | `/upload` | PDF ì—…ë¡œë“œ ë° ìžë™ ì¸ë±ì‹± |
-| POST | `/ask-stream` | RAG ìŠ¤íŠ¸ë¦¬ë° ë‹µë³€ |
-| GET | `/pdf/{filename}` | PDF íŒŒì¼ ì„œë¹™ |
+| GET | `/` | 챗봇 UI |
+| GET | `/pdfs` | 업로드된 PDF 목록 |
+| POST | `/upload` | PDF 업로드 및 자동 인덱싱 |
+| POST | `/ask-stream` | RAG 스트리밍 답변 |
+| DELETE | `/history` | 대화 히스토리 초기화 |
+| GET | `/pdf/{filename}` | PDF 파일 서빙 |
 
 ---
 
-## í”„ë¡œì íŠ¸ êµ¬ì¡°
+## 프로젝트 구조
 
 ```
 252RCOSE45700/
-â”œâ”€â”€ app/
-â”‚   â”œâ”€â”€ main.py       # FastAPI ì„œë²„ (ì—…ë¡œë“œ, RAG, ìŠ¤íŠ¸ë¦¬ë°)
-â”‚   â””â”€â”€ index.py      # ì¼ê´„ PDF ì¸ë±ì‹± ìŠ¤í¬ë¦½íŠ¸
-â””â”€â”€ static/
-    â””â”€â”€ index.html    # ì±—ë´‡ í”„ë¡ íŠ¸ì—”ë“œ (ë§ˆí¬ë‹¤ìš´ ì§€ì›)
+├── app/
+│   ├── main.py       # FastAPI 서버 (업로드, RAG, 스트리밍)
+│   └── index.py      # 일괄 PDF 인덱싱 스크립트
+├── static/
+│   └── index.html    # 챗봇 프론트엔드 (마크다운 지원)
+└── assets/           # 데모 이미지
 ```
 
-> `data/`, `chroma_db/`ëŠ” ì„œë²„ ì‹¤í–‰ ë° PDF ì—…ë¡œë“œ ì‹œ ìžë™ ìƒì„±ë©ë‹ˆë‹¤.  
-> `.env`ëŠ” ì§ì ‘ ìƒì„± í›„ `OPENAI_API_KEY`ë¥¼ ì„¤ì •í•˜ì„¸ìš”.
+> `data/`, `chroma_db/`는 서버 실행 및 PDF 업로드 시 자동 생성됩니다.  
+> `.env`는 직접 생성 후 `OPENAI_API_KEY`를 설정하세요.
