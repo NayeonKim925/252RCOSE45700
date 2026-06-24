@@ -1,6 +1,14 @@
 # LangChain RAG Chatbot
 
-PDF 문서를 업로드하면 실시간으로 질문에 답변하는 RAG(Retrieval-Augmented Generation) 기반 챗봇입니다.
+컴퓨터활용능력 자격증 준비 과정에서 방대한 요약 PDF를 효율적으로 검색하고 싶다는 필요에서 시작한 프로젝트입니다.  
+PDF 문서를 업로드하면 LangChain RAG 파이프라인이 문서를 벡터 인덱싱하고, 질문에 관련 내용을 찾아 GPT-4o-mini가 실시간으로 답변합니다.
+
+---
+
+## 데모
+
+> 스크린샷 또는 GIF를 여기에 추가하세요.  
+> 예: `![demo](assets/demo.gif)`
 
 ---
 
@@ -99,9 +107,9 @@ uvicorn app.main:app --reload
 ├── app/
 │   ├── main.py       # FastAPI 서버 (업로드, RAG, 스트리밍)
 │   └── index.py      # 일괄 PDF 인덱싱 스크립트
-├── static/
-│   └── index.html    # 챗봇 프론트엔드 (마크다운 지원)
-├── data/             # 업로드된 PDF 저장 (git 미추적)
-├── chroma_db/        # Chroma 벡터 DB (git 미추적)
-└── .env              # API 키 (git 미추적)
+└── static/
+    └── index.html    # 챗봇 프론트엔드 (마크다운 지원)
 ```
+
+> `data/`, `chroma_db/`는 서버 실행 및 PDF 업로드 시 자동 생성됩니다.  
+> `.env`는 직접 생성 후 `OPENAI_API_KEY`를 설정하세요.

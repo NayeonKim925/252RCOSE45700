@@ -260,6 +260,31 @@
     .footer button:disabled { opacity: .5; cursor: default; }
     .status { font-size: 12px; color: #9ca3af; }
 
+    /* reset button */
+    .reset-btn {
+      width: 100%;
+      padding: 7px 12px;
+      border-radius: 8px;
+      border: 1px solid #374151;
+      background: transparent;
+      color: #6b7280;
+      font-size: 12px;
+      cursor: pointer;
+      transition: border-color .15s, color .15s;
+      text-align: left;
+    }
+    .reset-btn:hover { border-color: #ef4444; color: #f87171; }
+
+    /* system message */
+    .system-msg {
+      align-self: center;
+      font-size: 12px;
+      color: #4b5563;
+      padding: 4px 12px;
+      border-radius: 999px;
+      border: 1px dashed #1f2937;
+    }
+
     @media (max-width: 640px) {
       .sidebar { display: none; }
     }
@@ -295,6 +320,11 @@
       <ul class="pdf-list" id="pdf-list">
         <li style="color:#4b5563;font-style:italic;">불러오는 중...</li>
       </ul>
+    </div>
+
+    <div>
+      <h2>대화</h2>
+      <button class="reset-btn" id="reset-btn">🗑 대화 초기화</button>
     </div>
 
     <div>
@@ -338,6 +368,17 @@
   const fileInput     = document.getElementById("file-input");
   const uploadStatus  = document.getElementById("upload-status");
   const pdfList       = document.getElementById("pdf-list");
+  const resetBtn      = document.getElementById("reset-btn");
+
+  // Reset history
+  resetBtn.addEventListener("click", async () => {
+    await fetch("/history", { method: "DELETE" });
+    chat.innerHTML = "";
+    const msg = document.createElement("div");
+    msg.className = "system-msg";
+    msg.textContent = "대화가 초기화되었습니다.";
+    chat.appendChild(msg);
+  });
 
   // RAG toggle
   kbEnabled.addEventListener("change", () => {
