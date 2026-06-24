@@ -3,5 +3,4 @@ __pycache__/
 *.pyc
 chroma_db/
 .env
-.data/
-data/*.pdf
+data/
